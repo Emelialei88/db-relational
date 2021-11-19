@@ -7,14 +7,14 @@ using namespace std;
 
 class Buffer {
 public:
-	Buffer() {
-		row = new Row();
-		table = new Table();
+	Buffer(const char* filename) {
+		row_tmp = new Row();
+		table = new Table(filename);
 		input = "";
 		type = StatementType::STATEMENT_DEFAULT;
 	}
 	~Buffer() {
-		delete row;
+		delete row_tmp;
 		delete table;
 	}
 	void prompt() { cout << "db> "; }
@@ -26,6 +26,7 @@ public:
 	}
 	MetaCommand do_meta_cmd() {
 		if (input == ".exit") {
+			delete table;
 			exit(EXIT_SUCCESS);
 		}
 		else {
@@ -35,14 +36,14 @@ public:
 	PrepareResult prepare_statement() {
 		if (input.substr(0, 6) == "insert") {
 			type = StatementType::STATEMENT_INSERT;
-			int arg_assigned = sscanf_s(input.c_str(), "insert %d %s %s", &(row->id), row->username, COLUMN_USERNAME_SIZE, row->email, COLUMN_EMAIL_SIZE);
+			int arg_assigned = sscanf_s(input.c_str(), "insert %d %s %s", &(row_tmp->id), row_tmp->username, COLUMN_USERNAME_SIZE, row_tmp->email, COLUMN_EMAIL_SIZE);
 			if (arg_assigned < 3) {
-				if (!strcmp(row->username, "") || !strcmp(row->email, "")) {
+				if (!strcmp(row_tmp->username, "") || !strcmp(row_tmp->email, "")) {
 					return PrepareResult::STRING_TOO_LONG;
 				}
 				return PrepareResult::SYNTAX_ERROR;
 			}
-			if (row->id < 0) {
+			if (row_tmp->id < 0) {
 				return PrepareResult::NEGATIVE_ID;
 			}
 			
@@ -58,7 +59,7 @@ public:
 		switch (type)
 		{
 		case StatementType::STATEMENT_INSERT:
-			return table->insert(row);
+			return table->insert(row_tmp);
 		case StatementType::STATEMENT_SELECT:
 			return table->select();
 		default:
@@ -69,11 +70,16 @@ private:
 	string input;
 	StatementType type;
 	Table* table;
-	Row* row;
+	Row* row_tmp;
 };
 
-int main() {
-	Buffer* buf = new Buffer();
+int main(int argc, char* argv[]) {
+	if (argc != 2) {
+		cout << "Error: must provide a valid filename." << endl;
+		exit(EXIT_FAILURE);
+	}
+	char* filename = argv[1];
+	Buffer* buf = new Buffer(filename);
 	while (true) {
 		buf->prompt();
 		buf->read_input();
